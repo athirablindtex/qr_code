@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multiple QR Code Generator</title>
+  <link href="bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa; /* Light gray background */
+    }
+    .container {
+      background-color: #ffffff; /* White background for container */
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .qr-code {
+      margin: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      text-align: center;
+    }
+    .download-options {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .logo {
+      display: block;
+      margin: 0 auto 20px;
+      width: 200px; /* Adjust the logo size */
+    }
+  </style>
+</head>
+<body>
+
+<div class="container mt-5">
+  <img src="Blindtex-logo.png" alt="Logo" class="logo">
+  <h1 class="text-center">Multiple QR Code Generator</h1>
+
+  <!-- URL Input Text Area -->
+  <div class="mb-3">
+    <label for="urlInput" class="form-label">Enter URLs (one per line)</label>
+    <textarea class="form-control" id="urlInput" rows="5" placeholder="https://example.com"></textarea>
+  </div>
+
+  <!-- Generate and Clear Buttons -->
+  <div class="text-center">
+    <button id="generateBtn" class="btn btn-primary">Generate QR Codes</button>
+    <button id="clearBtn" class="btn btn-outline-secondary ms-2">Clear</button>
+  </div>
+
+  <!-- QR Code Display Area -->
+  <div id="qrContainer" class="mt-4 row">
+    <!-- QR codes will appear here -->
+  </div>
+
+  <!-- Download Button Section -->
+  <div class="text-center mt-3">
+    <!-- <button class="btn btn-success" id="downloadZipBtn">Download All as ZIP</button> -->
+  </div>
+
+</div>
+
+<!-- Add your JavaScript at the bottom for faster load -->
+<script src="jszip.min.js"></script>
+<script src="FileSaver.min.js"></script>
+<script src="qrcode.min.js"></script>
+
+<script>
+document.getElementById('generateBtn').addEventListener('click', function() {
+  const urlInput = document.getElementById('urlInput').value.trim();
+  const urls = urlInput.split('\n').filter(Boolean); // Split URLs by new line and remove empty ones
+  const qrContainer = document.getElementById('qrContainer');
+  qrContainer.innerHTML = ''; // Clear previous QR codes
+
+  urls.forEach((url, index) => {
+    // Create a container for each QR code
+    const qrDiv = document.createElement('div');
+    qrDiv.classList.add('col-md-4', 'qr-code');
+
+    // Create the QR code canvas
+    const qrCanvas = document.createElement('canvas');
+    qrCanvas.id = `qrCanvas-${index}`;
+
+    // Generate QR code
+    QRCode.toCanvas(qrCanvas, url, { width: 150 }, function(error) {
+      if (error) console.error(error);
+    });
+
+    // Add the QR code canvas to the div
+    qrDiv.appendChild(qrCanvas);
+
+    // Add download options
+    const downloadDiv = document.createElement('div');
+    downloadDiv.classList.add('download-options');
+
+    // Download PNG Button
+    const pngBtn = document.createElement('button');
+    pngBtn.classList.add('btn', 'btn-outline-primary');
+    pngBtn.innerText = 'Download PNG';
+    pngBtn.onclick = () => downloadImage(qrCanvas, `${getLastSegment(url)}.png`, 'image/png');
+    downloadDiv.appendChild(pngBtn);
+
+    // Download SVG Button
+    const svgBtn = document.createElement('button');
+    svgBtn.classList.add('btn', 'btn-outline-secondary');
+    svgBtn.innerText = 'Download SVG';
+    svgBtn.onclick = () => downloadSVG(url, `${getLastSegment(url)}.svg`);
+    downloadDiv.appendChild(svgBtn);
+
+    // Download JPG Button
+    const jpgBtn = document.createElement('button');
+    jpgBtn.classList.add('btn', 'btn-outline-success');
+    jpgBtn.innerText = 'Download JPG';
+    jpgBtn.onclick = () => downloadImage(qrCanvas, `${getLastSegment(url)}.jpg`, 'image/jpeg');
+    downloadDiv.appendChild(jpgBtn);
+
+    qrDiv.appendChild(downloadDiv);
+    qrContainer.appendChild(qrDiv);
+  });
+});
+
+// Clear Button Functionality
+document.getElementById('clearBtn').addEventListener('click', function() {
+  document.getElementById('urlInput').value = ''; // Clear the input field
+  document.getElementById('qrContainer').innerHTML = ''; // Clear QR codes
+});
+
+function getLastSegment(url) {
+  const segments = url.split('/');
+  return segments.pop() || segments.pop(); // Handle trailing slashes
+}
+
+// Download image in different formats
+function downloadImage(canvas, filename, type) {
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL(type);
+  link.click();
+}
+
+// Generate and download SVG format
+function downloadSVG(url, filename) {
+  QRCode.toString(url, { type: 'svg' }, function (err, svg) {
+    if (err) throw err;
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    saveAs(blob, filename);
+  });
+}
+
+// Download all QR codes as ZIP
+document.getElementById('downloadZipBtn').addEventListener('click', function() {
+  const zip = new JSZip();
+  const qrCodes = document.querySelectorAll('canvas');
+
+  qrCodes.forEach((canvas, index) => {
+    const dataUrl = canvas.toDataURL('image/png');
+    const base64Data = dataUrl.split(',')[1];
+    const url = document.getElementById(`qrCanvas-${index}`).parentElement.innerText.trim();
+    zip.file(`${getLastSegment(url)}.png`, base64Data, { base64: true });
+  });
+
+  zip.generateAsync({ type: 'blob' }).then(function(content) {
+    saveAs(content, 'qr_codes.zip');
+  });
+});
+</script>
+
+</body>
+</html>
